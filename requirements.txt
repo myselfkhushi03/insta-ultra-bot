@@ -2,7 +2,7 @@ python-telegram-bot
 yt-dlp
 instagrapi
 apscheduler
-Flask
+flask
 pytz
 requests
 aiohttp
