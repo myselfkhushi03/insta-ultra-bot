@@ -1,7 +1,7 @@
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 👑 INSTAGRAM ULTRA DOWNLOADER & TRACKER BOT
-# 📱 ULTRA-PREMIUM EDITION (ENGLISH UI)
-# 🚀 RENDER FREE WEB SERVICE COMPATIBLE (FLASK INSIDE)
+# 📱 SYSTEM STATUS & MONITORED EDITION (PART 1)
+# 🚀 RENDER FREE WEB SERVICE COMPATIBLE
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import os
@@ -11,6 +11,7 @@ import random
 import logging
 import asyncio
 import threading
+from datetime import datetime
 from flask import Flask
 import yt_dlp
 from instagrapi import Client
@@ -38,6 +39,9 @@ logging.basicConfig(
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+
+# Track Bot Start Time for Uptime
+BOT_START_TIME = datetime.now()
 
 # ================= 🌐 WEB SERVER FOR RENDER FREE SERVICE =================
 web_app = Flask(__name__)
@@ -73,6 +77,21 @@ def save_tracking_data(data):
     with open(TRACKING_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
+# ================= 🤖 HUMAN EMULATION & WARMUP SYSTEM =================
+def human_delay(min_sec=3, max_sec=6):
+    """Simulates realistic human pause between requests"""
+    delay = random.uniform(min_sec, max_sec)
+    time.sleep(delay)
+
+def perform_human_warmup(cl):
+    """Simulates browsing feed/explore to prevent bot detection flags"""
+    try:
+        logger.info("🎬 Human Emulation: Simulating user feed scroll...")
+        cl.get_timeline_feed()
+        human_delay(2, 4)
+    except Exception as e:
+        logger.warning(f"⚠️ Warmup simulation skipped: {e}")
+
 # ================= 🔄 MULTI-ACCOUNT ROTATION SYSTEM =================
 def get_insta_client():
     if not os.path.exists(ACCOUNTS_FILE):
@@ -86,26 +105,33 @@ def get_insta_client():
         acc = random.choice(accounts)
         cl = Client()
         cl.login_by_sessionid(acc["sessionid"])
+        
+        human_delay(1, 3)
+        perform_human_warmup(cl)
+        
         logger.info(f"✨ Successfully switched to Insta Session: {acc['username']}")
         return cl
     except Exception as e:
         logger.error(f"❌ Account Rotation Error: {e}")
         return None
 
-# ================= 🎨 ULTRA-PREMIUM KEYBOARD MENUS =================
+# ================= 🎨 ULTRA-STYLISH KEYBOARD MENUS =================
 def main_menu_keyboard():
     keyboard = [
         [
-            InlineKeyboardButton("📥 Download Reel", callback_data="help_download"),
-            InlineKeyboardButton("🔍 Profile & QR Code", callback_data="help_lookup")
+            InlineKeyboardButton("📥 ᴅᴏᴡɴʟᴏᴀᴅ ʀᴇᴇʟ", callback_data="help_download"),
+            InlineKeyboardButton("🔍 ᴘʀᴏғɪʟᴇ & ǫʀ", callback_data="help_lookup")
         ],
         [
-            InlineKeyboardButton("📸 Story Saver", callback_data="help_story"),
-            InlineKeyboardButton("🎯 Target Tracker", callback_data="help_tracking")
+            InlineKeyboardButton("📸 sᴛᴏʀʏ sᴀᴠᴇʀ", callback_data="help_story"),
+            InlineKeyboardButton("🎯 ᴛᴀʀɢᴇᴛ ᴛʀᴀᴄᴋᴇʀ", callback_data="help_tracking")
         ],
         [
-            InlineKeyboardButton("📊 Active Targets", callback_data="list_targets"),
-            InlineKeyboardButton("⚡ System Status", callback_data="bot_status")
+            InlineKeyboardButton("👥 ᴇxᴘᴏʀᴛ ʟɪsᴛs", callback_data="help_export"),
+            InlineKeyboardButton("📊 ᴀᴄᴛɪᴠᴇ ᴛᴀʀɢᴇᴛs", callback_data="list_targets")
+        ],
+        [
+            InlineKeyboardButton("⚡ sʏsᴛᴇᴍ sᴛᴀᴛᴜs", callback_data="bot_status")
         ]
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -114,32 +140,74 @@ def main_menu_keyboard():
 
 async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_text = (
-        "💎 <b>𝕴𝖓𝖘𝖙𝖆𝖌𝖗𝖆𝖒 𝖀𝖑𝖙𝖗𝖆 𝕾𝖚𝖎𝖙𝖊</b> 💎\n"
+        "👑 <b>ɪɴsᴛᴀɢʀᴀᴍ ᴜʟᴛʀᴀ sᴜɪᴛᴇ</b>\n"
         "<code>━━━━━━━━━━━━━━━━━━━━━━</code>\n\n"
-        "👑 <b>YOUR ENTERPRISE INSTAGRAM SUITE</b>\n\n"
-        "⚡ <b>Quick Operations:</b>\n"
-        "▸ 🎥 Paste any <b>Reel / Video Link</b> to extract HD media.\n"
-        "▸ 👤 Send <code>@username</code> for HD Avatar, Analytics & QR Code.\n"
+        "✨ <b>𝒲𝑒𝓁𝒸𝑜𝓂𝑒 𝓉𝑜 𝓎𝑜𝓊𝓇 𝒫𝓇𝑒𝓂𝒾𝓊𝓂 𝒜𝓈𝓈𝒾𝓈𝓉𝒶𝓃𝓉</b>\n\n"
+        "⚡ <b>ǫᴜɪᴄᴋ ᴏᴘᴇʀᴀᴛɪᴏɴs:</b>\n"
+        "▸ 🎬 Send any <b>Reel / Video Link</b> to download.\n"
+        "▸ 👤 Send <code>@username</code> for HD DP, Profile Info & QR.\n"
         "▸ 📸 Send <code>/story username</code> to fetch active Stories.\n"
-        "▸ 🎯 Send <code>/track username</code> to initiate Live Surveillance.\n\n"
-        "<b>Select a menu option below to explore commands:</b>"
+        "▸ 🎯 Send <code>/track username</code> for Live Surveillance.\n"
+        "▸ 👥 Send <code>/followers username</code> to get Followers TXT.\n"
+        "▸ ➡️ Send <code>/following username</code> to get Following TXT.\n"
+        "▸ ⚡ Send <code>/status</code> to check Bot Uptime & Health.\n\n"
+        "👇 <b>Select an option from the menu below:</b>"
     )
     await update.message.reply_text(welcome_text, parse_mode="HTML", reply_markup=main_menu_keyboard())
+
+async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uptime = datetime.now() - BOT_START_TIME
+    hours, remainder = divmod(int(uptime.total_seconds()), 3600)
+    minutes, seconds = divmod(remainder, 60)
+    
+    session_count = 0
+    if os.path.exists(ACCOUNTS_FILE):
+        try:
+            with open(ACCOUNTS_FILE, "r") as f:
+                accs = json.load(f)
+                session_count = len(accs)
+        except:
+            pass
+
+    targets_count = len(load_tracking_data())
+
+    status_text = (
+        "⚡ <b>sʏsᴛᴇᴍ ʜᴇᴀʟᴛʜ & sᴛᴀᴛᴜs</b>\n"
+        "<code>━━━━━━━━━━━━━━━━━━━━━━</code>\n"
+        f"🟢 <b>Status:</b> ONLINE 24/7\n"
+        f"⏱️ <b>Uptime:</b> {hours}h {minutes}m {seconds}s\n"
+        f"🔑 <b>Active Sessions:</b> {session_count} Accounts Pool\n"
+        f"🎯 <b>Tracking Targets:</b> {targets_count} Accounts\n"
+        f"🛡️ <b>Anti-Detection:</b> Active (Human Emulation)\n"
+        f"🖥️ <b>Server Host:</b> Render Cloud Web Service\n"
+        "<code>━━━━━━━━━━━━━━━━━━━━━━</code>\n"
+        "✨ All systems functioning normally!"
+    )
+    await update.message.reply_text(status_text, parse_mode="HTML")
 
 async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
     if query.data == "help_download":
-        await query.message.reply_text("📥 <b>𝕸𝖊𝖉𝖎𝖆 𝕰𝖝𝖙𝖗𝖆𝖈𝖙𝖔𝖗:</b>\nPaste any public Instagram Reel or Post link directly in this chat to receive high-definition media.", parse_mode="HTML")
+        await query.message.reply_text("📥 <b>ᴍᴇᴅɪᴀ ᴇxᴛʀᴀᴄᴛᴏʀ</b>\n\nPaste any public Instagram Reel or Post link directly in this chat to receive high-definition media.", parse_mode="HTML")
     elif query.data == "help_lookup":
-        await query.message.reply_text("🔍 <b>𝕻𝖗𝖔𝖋𝖎𝖑𝖊 𝕴𝖓𝖙𝖊𝖑𝖑𝖎𝖌𝖊𝖓𝖈𝖊:</b>\nSend any <code>@username</code> to generate deep profile analytics, HD avatar, direct portal link, and a custom QR code.", parse_mode="HTML")
+        await query.message.reply_text("🔍 <b>ᴘʀᴏғɪʟᴇ ɪɴᴛᴇʟʟɪɢᴇɴᴄᴇ</b>\n\nSend any <code>@username</code> to receive profile statistics, HD avatar, direct link, and a custom QR code.", parse_mode="HTML")
     elif query.data == "help_story":
-        await query.message.reply_text("📸 <b>𝕾𝖙𝖔𝖗𝖞 𝕬𝖗𝖈𝖍𝖎𝖛𝖊𝖗:</b>\nSyntax: <code>/story username</code>\n(Example: <code>/story cristiano</code>)", parse_mode="HTML")
+        await query.message.reply_text("📸 <b>sᴛᴏʀʏ sᴀᴠᴇʀ</b>\n\nSyntax: <code>/story username</code>\n(Example: <code>/story cristiano</code>)", parse_mode="HTML")
+    elif query.data == "help_export":
+        await query.message.reply_text(
+            "👥 <b>ᴇxᴘᴏʀᴛ ᴜsᴇʀ ʟɪsᴛs</b>\n"
+            "<code>━━━━━━━━━━━━━━━━━━━━━━</code>\n"
+            "• <code>/followers username</code> — Export Followers into TXT File\n"
+            "• <code>/following username</code> — Export Following into TXT File",
+            parse_mode="HTML"
+        )
     elif query.data == "help_tracking":
         await query.message.reply_text(
-            "🎯 <b>𝕾𝖚𝖗𝖛𝖊𝖎𝖑𝖑𝖆𝖓𝖈𝖊 𝕮𝖔𝖓𝖙𝖗𝖔𝖑:</b>\n"
-            "• <code>/track username</code> — Activate live surveillance\n"
+            "🎯 <b>sᴜʀᴠᴇɪʟʟᴀɴᴄᴇ ᴄᴏɴᴛʀᴏʟ</b>\n"
+            "<code>━━━━━━━━━━━━━━━━━━━━━━</code>\n"
+            "• <code>/track username</code> — Activate surveillance\n"
             "• <code>/untrack username</code> — Terminate tracking\n"
             "• <code>/pause username</code> — Pause live alerts\n"
             "• <code>/resume username</code> — Resume live alerts", 
@@ -148,22 +216,14 @@ async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_
     elif query.data == "list_targets":
         await tracking_list_cmd(query, context)
     elif query.data == "bot_status":
-        await query.message.reply_text(
-            "⚡ <b>𝕾𝖞𝖘𝖙𝖊𝖒 𝕾𝖙𝖆𝖙𝖚𝖘:</b> 🟢 ONLINE\n"
-            "<code>━━━━━━━━━━━━━━━━━━━━━━</code>\n"
-            "🖥️ <b>Host:</b> Render Free Web Engine\n"
-            "🔄 <b>Session Manager:</b> Multi-Account Pool Active", 
-            parse_mode="HTML"
-        )
-
+        await status_cmd(query, context)
 # ================= 📥 DOWNLOADER & PROFILE LOOKUP =================
 
 async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
 
-    # 1. Video/Reel Downloader
     if "instagram.com" in text:
-        msg = await update.message.reply_text("⏳ <b>[ 𝕻𝖗𝖔𝖈𝖊𝖘𝖘𝖎𝖓𝖌 ]</b> <i>Extracting High-Definition Stream...</i>", parse_mode="HTML")
+        msg = await update.message.reply_text("⏳ <i>Processing Instagram Media Stream...</i>", parse_mode="HTML")
         file_name = f"insta_{update.message.message_id}.mp4"
         
         ydl_opts = {
@@ -179,7 +239,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             with open(file_name, 'rb') as video:
                 await update.message.reply_video(
                     video=video,
-                    caption="✨ <b>Media Extracted via Insta Ultra Suite</b> 🚀",
+                    caption="🎬 <b>Downloaded via Insta Ultra Suite</b> 🚀",
                     parse_mode="HTML"
                 )
             if os.path.exists(file_name):
@@ -187,43 +247,42 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             await msg.delete()
         except Exception as e:
             logger.error(f"Download Error: {e}")
-            await msg.edit_text("❌ <b>Extraction Failed!</b> The post may be private or the link is invalid.", parse_mode="HTML")
+            await msg.edit_text("❌ <b>Download Failed!</b> Post may be private or link is invalid.", parse_mode="HTML")
             if os.path.exists(file_name):
                 os.remove(file_name)
 
-    # 2. Profile Lookup, HD DP, Direct Link & QR Code Generator
     elif text.startswith("@"):
         username = text.replace("@", "").strip()
-        msg = await update.message.reply_text("🔍 <b>[ 𝕬𝖓𝖆𝖑𝖞𝖟𝖎𝖓𝖌 ]</b> <i>Gathering Profile Analytics & QR...</i>", parse_mode="HTML")
+        msg = await update.message.reply_text("🔍 <i>Fetching Profile Analytics & QR Code...</i>", parse_mode="HTML")
         
         cl = get_insta_client()
         if not cl:
-            await msg.edit_text("⚠️ <b>System Alert:</b> Multi-account pool unavailable. Basic download engine active.", parse_mode="HTML")
+            await msg.edit_text("⚠️ <b>System Alert:</b> Multi-account pool unavailable.", parse_mode="HTML")
             return
 
         try:
+            human_delay(2, 4)
             user_info = cl.user_info_by_username(username)
             profile_url = f"https://instagram.com/{user_info.username}"
             qr_api_url = f"https://api.qrserver.com/v1/create-qr-code/?size=400x400&data={profile_url}"
 
             caption = (
-                f"👑 <b>𝕻𝖗𝖔𝖋𝖎𝖑𝖊 𝕴𝖓𝖙𝖊𝖑𝖑𝖎𝖌𝖊𝖓𝖈𝖊</b> 👑\n"
+                f"👤 <b>ᴘʀᴏғɪʟᴇ ɪɴᴛᴇʟʟɪɢᴇɴᴄᴇ</b>\n"
                 f"<code>━━━━━━━━━━━━━━━━━━━━━━</code>\n"
-                f"👤 <b>Full Name:</b> {user_info.full_name}\n"
-                f"🆔 <b>Handle:</b> @{user_info.username}\n"
-                f"👥 <b>Followers:</b> {user_info.follower_count:,}\n"
-                f"➡️ <b>Following:</b> {user_info.following_count:,}\n"
-                f"📮 <b>Posts Count:</b> {user_info.media_count:,}\n"
-                f"🔒 <b>Privacy Status:</b> {'Private 🔒' if user_info.is_private else 'Public 🔓'}\n"
+                f"✨ <b>ғᴜʟʟ ɴᴀᴍᴇ:</b> {user_info.full_name}\n"
+                f"🆔 <b>ʜᴀɴᴅʟᴇ:</b> @{user_info.username}\n"
+                f"👥 <b>ғᴏʟʟᴏᴡᴇʀs:</b> {user_info.follower_count:,}\n"
+                f"➡️ <b>ғᴏʟʟᴏᴡɪɴɢ:</b> {user_info.following_count:,}\n"
+                f"📮 <b>ᴘᴏsᴛs ᴄᴏᴜɴᴛ:</b> {user_info.media_count:,}\n"
+                f"🔒 <b>ᴘʀɪᴠᴀᴄʏ sᴛᴀᴛᴜs:</b> {'Private 🔒' if user_info.is_private else 'Public 🔓'}\n"
                 f"<code>━━━━━━━━━━━━━━━━━━━━━━</code>\n"
-                f"📝 <b>Biography:</b>\n<i>{user_info.biography if user_info.biography else 'N/A'}</i>"
+                f"📝 <b>ʙɪᴏɢʀᴀᴘʜʏ:</b>\n<i>{user_info.biography if user_info.biography else 'N/A'}</i>"
             )
 
             keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🌐 Open Direct Profile", url=profile_url)]
+                [InlineKeyboardButton("🌐 ᴏᴘᴇɴ ᴅɪʀᴇᴄᴛ ᴘʀᴏғɪʟᴇ", url=profile_url)]
             ])
 
-            # Send HD DP
             await update.message.reply_photo(
                 photo=str(user_info.profile_pic_url_hd),
                 caption=caption,
@@ -231,10 +290,9 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
                 reply_markup=keyboard
             )
 
-            # Send Profile QR Code
             await update.message.reply_photo(
                 photo=qr_api_url,
-                caption=f"📱 <b>𝕼𝕽 𝕬𝖈𝖈𝖊𝖘𝖘 𝕮𝖆𝖗𝖉</b>\n<code>Scan to open @{user_info.username}'s profile directly</code>",
+                caption=f"📱 <b>ǫʀ ᴀᴄᴄᴇss ᴄᴀʀᴅ</b>\n<code>Scan to open @{user_info.username}'s profile</code>",
                 parse_mode="HTML"
             )
 
@@ -242,21 +300,119 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
         except Exception as e:
             await msg.edit_text(f"❌ <b>Analysis Failed:</b> Unable to fetch profile for @{username}.", parse_mode="HTML")
 
+# ================= 📁 FOLLOWERS & FOLLOWING FILE EXPORTER =================
+
+async def followers_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("⚠️ <b>Usage:</b> <code>/followers username</code>", parse_mode="HTML")
+        return
+
+    username = context.args[0].replace("@", "")
+    msg = await update.message.reply_text(f"📄 <i>Fetching Followers list for @{username}... Please wait...</i>", parse_mode="HTML")
+
+    cl = get_insta_client()
+    if not cl:
+        await msg.edit_text("❌ <b>Session Error:</b> Multi-account pool required.")
+        return
+
+    try:
+        user_info = cl.user_info_by_username(username)
+        if user_info.is_private:
+            await msg.edit_text("🔒 <b>Private Profile:</b> Cannot fetch followers list for private profiles.", parse_mode="HTML")
+            return
+
+        user_id = user_info.pk
+        human_delay(2, 4)
+        
+        followers_dict = cl.user_followers(user_id, amount=150)
+        
+        file_path = f"{username}_followers.txt"
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(f"=== FOLLOWERS LIST FOR @{username} ===\n")
+            f.write(f"Total Exported: {len(followers_dict)}\n\n")
+            for uid, uinfo in followers_dict.items():
+                f.write(f"@{uinfo.username} | Name: {uinfo.full_name}\n")
+
+        with open(file_path, "rb") as doc:
+            await update.message.reply_document(
+                document=doc,
+                caption=f"👥 <b>ғᴏʟʟᴏᴡᴇʀs ᴇxᴘᴏʀᴛ — @{username}</b>\n<code>Total extracted: {len(followers_dict)} accounts</code>",
+                parse_mode="HTML"
+            )
+
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        await msg.delete()
+
+    except Exception as e:
+        await msg.edit_text(f"❌ <b>Export Failed:</b> {e}", parse_mode="HTML")
+
+async def following_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("⚠️ <b>Usage:</b> <code>/following username</code>", parse_mode="HTML")
+        return
+
+    username = context.args[0].replace("@", "")
+    msg = await update.message.reply_text(f"📄 <i>Fetching Following list for @{username}... Please wait...</i>", parse_mode="HTML")
+
+    cl = get_insta_client()
+    if not cl:
+        await msg.edit_text("❌ <b>Session Error:</b> Multi-account pool required.")
+        return
+
+    try:
+        user_info = cl.user_info_by_username(username)
+        if user_info.is_private:
+            await msg.edit_text("🔒 <b>Private Profile:</b> Cannot fetch following list for private profiles.", parse_mode="HTML")
+            return
+
+        user_id = user_info.pk
+        human_delay(2, 4)
+
+        following_dict = cl.user_following(user_id, amount=150)
+
+        file_path = f"{username}_following.txt"
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(f"=== FOLLOWING LIST FOR @{username} ===\n")
+            f.write(f"Total Exported: {len(following_dict)}\n\n")
+            for uid, uinfo in following_dict.items():
+                f.write(f"@{uinfo.username} | Name: {uinfo.full_name}\n")
+
+        with open(file_path, "rb") as doc:
+            await update.message.reply_document(
+                document=doc,
+                caption=f"➡️ <b>ғᴏʟʟᴏᴡɪɴɢ ᴇxᴘᴏʀᴛ — @{username}</b>\n<code>Total extracted: {len(following_dict)} accounts</code>",
+                parse_mode="HTML"
+            )
+
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        await msg.delete()
+
+    except Exception as e:
+        await msg.edit_text(f"❌ <b>Export Failed:</b> {e}", parse_mode="HTML")
+
 async def story_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text("⚠️ <b>Usage:</b> <code>/story username</code>", parse_mode="HTML")
         return
 
     username = context.args[0].replace("@", "")
-    msg = await update.message.reply_text(f"📸 <b>[ 𝕾𝖈𝖆𝖓𝖓𝖎𝖓𝖌 ]</b> <i>Fetching active stories for @{username}...</i>", parse_mode="HTML")
+    msg = await update.message.reply_text(f"📸 <i>Fetching active stories for @{username}...</i>", parse_mode="HTML")
 
     cl = get_insta_client()
     if not cl:
-        await msg.edit_text("⚠️ <b>Session Error:</b> Instagram session pool required for Stories.", parse_mode="HTML")
+        await msg.edit_text("⚠️ <b>Session Error:</b> Instagram session pool required.", parse_mode="HTML")
         return
 
     try:
-        user_id = cl.user_id_from_username(username)
+        human_delay(2, 4)
+        user_info = cl.user_info_by_username(username)
+        if user_info.is_private:
+            await msg.edit_text("🔒 <b>Private Account Alert:</b> Stories cannot be downloaded from private accounts.", parse_mode="HTML")
+            return
+
+        user_id = user_info.pk
         stories = cl.user_stories(user_id)
         if not stories:
             await msg.edit_text("📭 <b>No active stories found for this profile.</b>", parse_mode="HTML")
@@ -265,9 +421,9 @@ async def story_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for story in stories:
             url = story.video_url if story.media_type == 2 else story.thumbnail_url
             if story.media_type == 2:
-                await update.message.reply_video(video=str(url), caption=f"📸 <b>Story Stream:</b> @{username}")
+                await update.message.reply_video(video=str(url), caption=f"📸 <b>sᴛᴏʀʏ sᴛʀᴇᴀᴍ:</b> @{username}")
             else:
-                await update.message.reply_photo(photo=str(url), caption=f"📸 <b>Story Image:</b> @{username}")
+                await update.message.reply_photo(photo=str(url), caption=f"📸 <b>sᴛᴏʀʏ ɪᴍᴀɢᴇ:</b> @{username}")
         await msg.delete()
     except Exception as e:
         await msg.edit_text(f"❌ <b>Error:</b> Unable to fetch stories: {e}", parse_mode="HTML")
@@ -284,12 +440,24 @@ async def track_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     cl = get_insta_client()
     if not cl:
-        await update.message.reply_text("❌ <b>Session Pool Error:</b> Multi-account setup required for live surveillance.")
+        await update.message.reply_text("❌ <b>Session Error:</b> Multi-account setup required.")
         return
 
-    msg = await update.message.reply_text(f"🎯 <b>[ 𝕴𝖓𝖎𝖙𝖎𝖆𝖑𝖎𝖟𝖎𝖓𝖌 ]</b> <i>Configuring tracking parameters for @{username}...</i>", parse_mode="HTML")
+    msg = await update.message.reply_text(f"🎯 <i>Activating tracking engine for @{username}...</i>", parse_mode="HTML")
     try:
+        human_delay(2, 4)
         user_info = cl.user_info_by_username(username)
+
+        if user_info.is_private:
+            await msg.edit_text(
+                f"🔒 <b>ᴘʀɪᴠᴀᴛᴇ ᴀᴄᴄᴏᴜɴᴛ ᴀʟᴇʀᴛ</b>\n"
+                f"<code>━━━━━━━━━━━━━━━━━━━━━━</code>\n"
+                f"⚠️ <b>Target:</b> @{username}\n\n"
+                f"❌ Tracking and live surveillance are <b>NOT possible</b> on private profiles due to Instagram privacy restrictions.",
+                parse_mode="HTML"
+            )
+            return
+
         data = load_tracking_data()
 
         data[username] = {
@@ -303,13 +471,13 @@ async def track_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_tracking_data(data)
 
         await msg.edit_text(
-            f"🎯 <b>𝕾𝖚𝖗𝖛𝖊𝖎𝖑𝖑𝖆𝖓𝖈𝖊 𝕬𝖈𝖙𝖎𝖛𝖆𝖙𝖊𝖉!</b>\n"
+            f"🎯 <b>sᴜʀᴠᴇɪʟʟᴀɴᴄᴇ ᴀᴄᴛɪᴠᴀᴛᴇᴅ</b>\n"
             f"<code>━━━━━━━━━━━━━━━━━━━━━━</code>\n"
-            f"👤 <b>Target:</b> @{username}\n"
-            f"👥 <b>Initial Followers:</b> {user_info.follower_count:,}\n"
-            f"➡️ <b>Initial Following:</b> {user_info.following_count:,}\n"
+            f"👤 <b>ᴛᴀʀɢᴇᴛ:</b> @{username}\n"
+            f"👥 <b>ɪɴɪᴛɪᴀʟ ғᴏʟʟᴏᴡᴇʀs:</b> {user_info.follower_count:,}\n"
+            f"➡️ <b>ɪɴɪᴛɪᴀʟ ғᴏʟʟᴏᴡɪɴɢ:</b> {user_info.following_count:,}\n"
             f"<code>━━━━━━━━━━━━━━━━━━━━━━</code>\n"
-            f"🔔 <b>Status:</b> Live automated surveillance initiated. Updates will be delivered instantly.",
+            f"🔔 Live surveillance is active. You will receive real-time alerts upon any changes.",
             parse_mode="HTML"
         )
     except Exception as e:
@@ -339,7 +507,7 @@ async def pause_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if username in data:
         data[username]["status"] = "paused"
         save_tracking_data(data)
-        await update.message.reply_text(f"⏸️️ <b>Surveillance Paused for @{username}</b>", parse_mode="HTML")
+        await update.message.reply_text(f"⏸ <b>Surveillance Paused for @{username}</b>", parse_mode="HTML")
 
 async def resume_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
@@ -358,7 +526,7 @@ async def tracking_list_cmd(update_or_query, context: ContextTypes.DEFAULT_TYPE)
     if not data:
         msg = "📭 <b>No active tracking targets registered.</b>"
     else:
-        msg = "📊 <b>𝕬𝖈𝖙𝖎𝖛𝖊 𝕾𝖚𝖗𝖛𝖊𝖎𝖑𝖑𝖆𝖓𝖈𝖊 𝕽𝖊𝖌𝖎𝖘𝖙𝖗𝖞:</b>\n<code>━━━━━━━━━━━━━━━━━━━━━━</code>\n"
+        msg = "📊 <b>ᴀᴄᴛɪᴠᴇ sᴜʀᴠᴇɪʟʟᴀɴᴄᴇ ʀᴇɢɪsᴛʀʏ</b>\n<code>━━━━━━━━━━━━━━━━━━━━━━</code>\n"
         for user, info in data.items():
             status_icon = "🟢 Active" if info.get("status") == "active" else "⏸️ Paused"
             msg += f"• <b>@{user}</b> │ Status: {status_icon}\n"
@@ -368,7 +536,7 @@ async def tracking_list_cmd(update_or_query, context: ContextTypes.DEFAULT_TYPE)
     else:
         await update_or_query.message.reply_text(msg, parse_mode="HTML")
 
-# --- BACKGROUND TRACKING TASK (EVERY 10 MINS) ---
+# --- BACKGROUND TRACKING TASK ---
 async def tracking_background_task(context: ContextTypes.DEFAULT_TYPE):
     data = load_tracking_data()
     if not data:
@@ -383,7 +551,9 @@ async def tracking_background_task(context: ContextTypes.DEFAULT_TYPE):
             continue
 
         try:
+            human_delay(3, 8)
             user_info = cl.user_info_by_username(username)
+            
             old_f = info.get("followers", 0)
             new_f = user_info.follower_count
 
@@ -392,33 +562,30 @@ async def tracking_background_task(context: ContextTypes.DEFAULT_TYPE):
 
             chat_id = info.get("chat_id")
 
-            # Follower Alert
             if new_f != old_f:
                 diff = new_f - old_f
                 icon = "📈" if diff > 0 else "📉"
                 alert_msg = (
-                    f"🚨 <b>𝕾𝖚𝖗𝖛𝖊𝖎𝖑𝖑𝖆𝖓𝖈𝖊 𝕬𝖑𝖊𝖗𝖙 — @{username}</b> {icon}\n"
+                    f"🚨 <b>sᴜʀᴠᴇɪʟʟᴀɴᴄᴇ ᴀʟᴇʀᴛ — @{username}</b> {icon}\n"
                     f"<code>━━━━━━━━━━━━━━━━━━━━━━</code>\n"
-                    f"👥 <b>Followers Activity:</b>\n"
+                    f"👥 <b>ғᴏʟʟᴏᴡᴇʀs ᴄʜᴀɴɢᴇᴅ:</b>\n"
                     f"<code>{old_f:,}</code> ➔ <b>{new_f:,}</b> ({diff:+d})"
                 )
                 await context.bot.send_message(chat_id=chat_id, text=alert_msg, parse_mode="HTML")
                 data[username]["followers"] = new_f
 
-            # Following Alert
             if new_fg != old_fg:
                 diff = new_fg - old_fg
                 alert_msg = (
-                    f"🚨 <b>𝕾𝖚𝖗𝖛𝖊𝖎𝖑𝖑𝖆𝖓𝖈𝖊 𝕬𝖑𝖊𝖗𝖙 — @{username}</b> 🔄\n"
+                    f"🚨 <b>sᴜʀᴠᴇɪʟʟᴀɴᴄᴇ ᴀʟᴇʀᴛ — @{username}</b> 🔄\n"
                     f"<code>━━━━━━━━━━━━━━━━━━━━━━</code>\n"
-                    f"➡️ <b>Following Activity:</b>\n"
+                    f"➡️ <b>ғᴏʟʟᴏᴡɪɴɢ ᴄʜᴀɴɢᴇᴅ:</b>\n"
                     f"<code>{old_fg:,}</code> ➔ <b>{new_fg:,}</b> ({diff:+d})"
                 )
                 await context.bot.send_message(chat_id=chat_id, text=alert_msg, parse_mode="HTML")
                 data[username]["following"] = new_fg
 
             save_tracking_data(data)
-            await asyncio.sleep(5)
         except Exception as e:
             logger.error(f"Tracking check error for {username}: {e}")
 
@@ -427,6 +594,9 @@ async def tracking_background_task(context: ContextTypes.DEFAULT_TYPE):
 async def post_init_setup(application):
     commands = [
         BotCommand("start", "Start Bot & Open Suite"),
+        BotCommand("status", "Check Live System Status & Uptime"),
+        BotCommand("followers", "Export Followers to TXT File"),
+        BotCommand("following", "Export Following to TXT File"),
         BotCommand("story", "Download Instagram Story"),
         BotCommand("track", "Activate Surveillance"),
         BotCommand("untrack", "Terminate Surveillance"),
@@ -446,13 +616,14 @@ def main():
         logger.error("BOT_TOKEN is missing!")
         return
 
-    # 1. Start Flask Server in Background Thread for Render Web Service
     threading.Thread(target=run_flask, daemon=True).start()
 
-    # 2. Start Telegram Bot
     app = ApplicationBuilder().token(BOT_TOKEN).post_init(post_init_setup).build()
 
     app.add_handler(CommandHandler("start", start_cmd))
+    app.add_handler(CommandHandler("status", status_cmd))
+    app.add_handler(CommandHandler("followers", followers_cmd))
+    app.add_handler(CommandHandler("following", following_cmd))
     app.add_handler(CommandHandler("story", story_cmd))
     app.add_handler(CommandHandler("track", track_cmd))
     app.add_handler(CommandHandler("untrack", untrack_cmd))
