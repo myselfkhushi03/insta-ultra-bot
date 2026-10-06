@@ -12,7 +12,7 @@ import random
 import logging
 import asyncio
 import threading
-from Flask import Flask
+from flask import flask
 import yt_dlp
 from instagrapi import Client
 from pytz import timezone
