@@ -1,4 +1,3 @@
-
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 👑 INSTAGRAM ULTRA DOWNLOADER & TRACKER BOT
 # 📱 MADE WITH PREMIUM AESTHETIC INTERFACE
@@ -12,7 +11,7 @@ import random
 import logging
 import asyncio
 import threading
-from flask import flask
+from flask import Flask
 import yt_dlp
 from instagrapi import Client
 from pytz import timezone
@@ -98,7 +97,7 @@ def main_menu_keyboard():
     keyboard = [
         [
             InlineKeyboardButton("📥 Download Reel", callback_data="help_download"),
-            InlineKeyboardButton("🔍 Profile Lookup", callback_data="help_lookup")
+            InlineKeyboardButton("🔍 Profile & QR Code", callback_data="help_lookup")
         ],
         [
             InlineKeyboardButton("📸 Story Saver", callback_data="help_story"),
@@ -120,7 +119,7 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🔥 <b>Apka All-In-One Instagram Assistant!</b>\n\n"
         "⚡ <b>Quick Guide:</b>\n"
         "▸ 🎥 Send any <b>Reel / Video link</b> to Download.\n"
-        "▸ 👤 Send <code>@username</code> for Profile Info & HD DP.\n"
+        "▸ 👤 Send <code>@username</code> for Info, HD DP & QR Code.\n"
         "▸ 📸 Send <code>/story username</code> to download Stories.\n"
         "▸ 🎯 Send <code>/track username</code> to start Live Tracking.\n\n"
         "👇 <b>Select an option from the menu below:</b>"
@@ -134,7 +133,7 @@ async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_
     if query.data == "help_download":
         await query.message.reply_text("📥 <b>Reel Downloader:</b>\nBus kisi bhi Instagram Reel/Post ka public link yahan chat me paste kar dein!", parse_mode="HTML")
     elif query.data == "help_lookup":
-        await query.message.reply_text("🔍 <b>Profile Lookup & HD DP:</b>\nKisi bhi account ki details aur HD DP ke liye <code>@username</code> type karke bhejien.", parse_mode="HTML")
+        await query.message.reply_text("🔍 <b>Profile Lookup & QR:</b>\nKisi bhi account ki details, HD DP, Direct Link aur Profile QR ke liye <code>@username</code> type karke bhejien.", parse_mode="HTML")
     elif query.data == "help_story":
         await query.message.reply_text("📸 <b>Story Saver:</b>\nCommand: <code>/story username</code>\n(Example: <code>/story cristiano</code>)", parse_mode="HTML")
     elif query.data == "help_tracking":
@@ -186,10 +185,10 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             if os.path.exists(file_name):
                 os.remove(file_name)
 
-    # 2. Profile Lookup & HD DP Download (@username)
+    # 2. Profile Lookup, HD DP, Direct Link & QR Code Generator
     elif text.startswith("@"):
         username = text.replace("@", "").strip()
-        msg = await update.message.reply_text("🔍 <i>Fetching Instagram Profile & HD DP...</i>", parse_mode="HTML")
+        msg = await update.message.reply_text("🔍 <i>Fetching Instagram Profile, HD DP & QR Code...</i>", parse_mode="HTML")
         
         cl = get_insta_client()
         if not cl:
@@ -198,20 +197,40 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
 
         try:
             user_info = cl.user_info_by_username(username)
+            profile_url = f"https://instagram.com/{user_info.username}"
+            qr_api_url = f"https://api.qrserver.com/v1/create-qr-code/?size=400x400&data={profile_url}"
+
             caption = (
                 f"👤 <b>Name:</b> {user_info.full_name}\n"
                 f"🆔 <b>Username:</b> @{user_info.username}\n"
+                f"🔗 <b>Direct Link:</b> <a href='{profile_url}'>Click Here</a>\n"
                 f"👥 <b>Followers:</b> {user_info.follower_count:,}\n"
                 f"➡️ <b>Following:</b> {user_info.following_count:,}\n"
                 f"📮 <b>Posts:</b> {user_info.media_count}\n"
                 f"🔒 <b>Is Private:</b> {'Yes 🔒' if user_info.is_private else 'No 🔓'}\n\n"
                 f"📝 <b>Bio:</b>\n<i>{user_info.biography}</i>"
             )
+
+            # Profile HD DP + Caption Buttons
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔗 Open Profile", url=profile_url)]
+            ])
+
+            # Send HD DP Photo
             await update.message.reply_photo(
                 photo=str(user_info.profile_pic_url_hd),
                 caption=caption,
+                parse_mode="HTML",
+                reply_markup=keyboard
+            )
+
+            # Send Profile QR Code
+            await update.message.reply_photo(
+                photo=qr_api_url,
+                caption=f"📱 <b>Profile QR Code for @{user_info.username}</b>\nScan to open profile directly!",
                 parse_mode="HTML"
             )
+
             await msg.delete()
         except Exception as e:
             await msg.edit_text(f"❌ Profile lookup failed for @{username}.", parse_mode="HTML")
