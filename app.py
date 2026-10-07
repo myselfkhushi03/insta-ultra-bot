@@ -228,7 +228,6 @@ async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_
             )
         except Exception as e:
             await query.message.reply_text(f"❌ <b>Error Sending Request:</b> {e}", parse_mode="HTML")
-
 # ================= 📥 DOWNLOADER & PROFILE LOOKUP =================
 
 async def audio_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -285,6 +284,7 @@ async def audio_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.edit_text("❌ <b>Extraction failed!</b> Make sure the link is valid and public.", parse_mode="HTML")
         if out_file and os.path.exists(out_file):
             os.remove(out_file)
+
 async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
 
@@ -447,7 +447,6 @@ async def story_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.delete()
     except Exception as e:
         await msg.edit_text(f"❌ <b>Error:</b> Unable to fetch stories: {e}", parse_mode="HTML")
-
 # ================= 🎯 SAFE TARGET TRACKING ENGINE =================
 
 async def track_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -728,7 +727,7 @@ def main():
     app.add_handler(CommandHandler("resume", resume_cmd))
     app.add_handler(CommandHandler("tracking", tracking_list_cmd))
 
-        app.add_handler(CallbackQueryHandler(button_callback_handler))
+    app.add_handler(CallbackQueryHandler(button_callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
 
     logger.info("🤖 Insta Ultra Bot is Live!")
