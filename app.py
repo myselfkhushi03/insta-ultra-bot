@@ -1,5 +1,5 @@
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 👑 INSTAGRAM ULTRA SUITE (CLEAN PREMIUM EDITION) - PART 1
+# 👑 INSTAGRAM ULTRA SUITE (CLEAN PREMIUM EDITION)
 # 🚀 RENDER CLOUD 24/7 COMPATIBLE
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -9,6 +9,7 @@ import time
 import random
 import logging
 import asyncio
+import re
 import threading
 from datetime import datetime
 from flask import Flask
@@ -73,6 +74,10 @@ def load_tracking_data():
 def save_tracking_data(data):
     with open(TRACKING_FILE, "w") as f:
         json.dump(data, f, indent=4)
+
+# Helper function to sanitize file names
+def sanitize_filename(filename):
+    return re.sub(r'[\\/*?:"<>|]', "", filename)
 
 # ================= 🤖 HUMAN EMULATION & ROTATION =================
 def human_delay(min_sec=3, max_sec=6):
@@ -190,6 +195,39 @@ async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_
         await tracking_list_cmd(query, context)
     elif data_code == "bot_status":
         await status_cmd(query, context)
+    elif data_code.startswith("req_follow_"):
+        username = data_code.replace("req_follow_", "")
+        cl = get_insta_client()
+        if not cl:
+            await query.message.reply_text("❌ <b>Session Error:</b> Instagram account pool not available.", parse_mode="HTML")
+            return
+        
+        try:
+            user_info = cl.user_info_by_username(username)
+            cl.user_follow(user_info.pk)
+            
+            data = load_tracking_data()
+            chat_id = str(query.message.chat.id)
+            data[username] = {
+                "user_id": str(user_info.pk),
+                "chat_id": chat_id,
+                "followers": user_info.follower_count,
+                "following": user_info.following_count,
+                "posts": user_info.media_count,
+                "seen_stories": [],
+                "seen_posts": [],
+                "status": "pending_request"
+            }
+            save_tracking_data(data)
+            
+            await query.message.edit_text(
+                f"✅ <b>Follow Request Sent!</b>\n\n"
+                f"👤 <b>Target:</b> @{username}\n"
+                f"⏳ Bot will monitor for acceptance and automatically start tracking once accepted.",
+                parse_mode="HTML"
+            )
+        except Exception as e:
+            await query.message.reply_text(f"❌ <b>Error Sending Request:</b> {e}", parse_mode="HTML")
 
 # ================= 📥 DOWNLOADER & PROFILE LOOKUP =================
 
@@ -200,36 +238,59 @@ async def audio_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     url = context.args[0]
     msg = await update.message.reply_text("🎵 <i>Extracting audio stream...</i>", parse_mode="HTML")
-    out_file = f"audio_{update.message.message_id}.mp3"
+    
+    download_template = os.path.join(DOWNLOAD_FOLDER, f"%(title)s_{update.message.message_id}.%(ext)s")
 
     ydl_opts = {
         'format': 'bestaudio/best',
-        'postprocessors': [{'key': 'FFmpegExtractAudio','preferredcodec': 'mp3','preferredquality': '192'}],
-        'outtmpl': out_file.replace(".mp3", ""),
+        'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}],
+        'outtmpl': download_template,
         'quiet': True
     }
 
+    out_file = None
+    song_title = "Unknown Audio"
+
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+            info = ydl.extract_info(url, download=True)
+            song_title = info.get('title', 'Instagram_Audio')
+            
+            clean_title = sanitize_filename(song_title)
+            expected_filename = f"{clean_title}_{update.message.message_id}.mp3"
+            out_file = os.path.join(DOWNLOAD_FOLDER, expected_filename)
 
-        with open(out_file, 'rb') as audio_doc:
-            await update.message.reply_audio(audio=audio_doc, caption="🎵 <b>Audio Extracted via Insta Suite</b> 🚀", parse_mode="HTML")
+            if not os.path.exists(out_file):
+                for f in os.listdir(DOWNLOAD_FOLDER):
+                    if str(update.message.message_id) in f and f.endswith(".mp3"):
+                        out_file = os.path.join(DOWNLOAD_FOLDER, f)
+                        break
 
-        if os.path.exists(out_file):
+        if out_file and os.path.exists(out_file):
+            with open(out_file, 'rb') as audio_doc:
+                await update.message.reply_audio(
+                    audio=audio_doc,
+                    title=song_title,
+                    filename=f"{sanitize_filename(song_title)}.mp3",
+                    caption=f"🎵 <b>Song Name:</b> <i>{song_title}</i>\n🚀 Extracted via <b>Insta Suite</b>",
+                    parse_mode="HTML"
+                )
             os.remove(out_file)
+        else:
+            await msg.edit_text("❌ <b>Audio extraction failed!</b> Could not locate audio file.", parse_mode="HTML")
+
         await msg.delete()
     except Exception as e:
+        logger.error(f"Audio command error: {e}")
         await msg.edit_text("❌ <b>Extraction failed!</b> Make sure the link is valid and public.", parse_mode="HTML")
-        if os.path.exists(out_file):
+        if out_file and os.path.exists(out_file):
             os.remove(out_file)
-
 async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
 
     if "instagram.com" in text:
         msg = await update.message.reply_text("⏳ <i>Processing Instagram media...</i>", parse_mode="HTML")
-        file_name = f"insta_{update.message.message_id}.mp4"
+        file_name = os.path.join(DOWNLOAD_FOLDER, f"insta_{update.message.message_id}.mp4")
 
         ydl_opts = {'format': 'best', 'outtmpl': file_name, 'quiet': True}
         try:
@@ -282,6 +343,7 @@ async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYP
             await msg.delete()
         except Exception as e:
             await msg.edit_text(f"❌ <b>Analysis Failed:</b> Unable to fetch profile for @{username}.", parse_mode="HTML")
+
 # ================= 📁 EXPORTERS & STORY SAVER =================
 
 async def followers_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -404,6 +466,23 @@ async def track_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = await update.message.reply_text(f"🎯 <i>Activating tracking engine for @{username}...</i>", parse_mode="HTML")
     try:
         user_info = cl.user_info_by_username(username)
+
+        # Handle Private Account
+        if user_info.is_private:
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("➕ Send Follow Request", callback_data=f"req_follow_{username}")]
+            ])
+            await msg.edit_text(
+                f"🔒 <b>PRIVATE ACCOUNT DETECTED</b>\n"
+                f"<code>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</code>\n"
+                f"👤 <b>Target:</b> @{username}\n"
+                f"⚠️ Unable to fetch data because the profile is private.\n\n"
+                f"👉 Click the button below to send a Follow Request from bot's Instagram session. Once accepted, tracking will automatically start!",
+                parse_mode="HTML",
+                reply_markup=keyboard
+            )
+            return
+
         data = load_tracking_data()
 
         active_stories = cl.user_stories(user_info.pk)
@@ -478,7 +557,13 @@ async def tracking_list_cmd(update_or_query, context: ContextTypes.DEFAULT_TYPE)
     else:
         msg = "📊 <b>ACTIVE SURVEILLANCE REGISTRY</b>\n<code>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</code>\n"
         for user, info in data.items():
-            status_icon = "🟢 Active" if info.get("status") == "active" else "⏸️ Paused"
+            status = info.get("status")
+            if status == "active":
+                status_icon = "🟢 Active"
+            elif status == "pending_request":
+                status_icon = "⏳ Follow Req Pending"
+            else:
+                status_icon = "⏸️ Paused"
             msg += f"• <b>@{user}</b> │ Status: {status_icon}\n"
 
     if hasattr(update_or_query, 'message'):
@@ -497,30 +582,106 @@ async def tracking_background_task(context: ContextTypes.DEFAULT_TYPE):
         return
 
     for username, info in list(data.items()):
-        if info.get("status") != "active":
+        status = info.get("status")
+        chat_id = info.get("chat_id")
+        user_id = info.get("user_id")
+
+        if status == "paused":
             continue
 
         try:
-            human_delay(5, 12) # Safe Anti-Ban Delay
-            user_id = info.get("user_id")
+            human_delay(5, 12)  # Anti-Ban Delay
             user_info = cl.user_info_by_username(username)
 
-            old_f, new_f = info.get("followers", 0), user_info.follower_count
-            old_fg, new_fg = info.get("following", 0), user_info.following_count
-            chat_id = info.get("chat_id")
+            # Check if pending request is now accepted
+            if status == "pending_request":
+                if not user_info.is_private or user_info.has_anonymous_profile_picture is False:
+                    try:
+                        active_stories = cl.user_stories(user_id)
+                        initial_story_pks = [str(s.pk) for s in active_stories]
+                        recent_posts = cl.user_medias(user_id, amount=3)
+                        initial_post_pks = [str(p.pk) for p in recent_posts]
 
-            if new_f != old_f:
-                diff = new_f - old_f
-                icon = "📈" if diff > 0 else "📉"
-                await context.bot.send_message(chat_id=chat_id, text=f"🚨 <b>SURVEILLANCE ALERT — @{username}</b> {icon}\nFollowers: <code>{old_f:,}</code> ➔ <b>{new_f:,}</b> ({diff:+d})", parse_mode="HTML")
-                data[username]["followers"] = new_f
+                        data[username]["seen_stories"] = initial_story_pks
+                        data[username]["seen_posts"] = initial_post_pks
+                        data[username]["followers"] = user_info.follower_count
+                        data[username]["following"] = user_info.following_count
+                        data[username]["posts"] = user_info.media_count
+                        data[username]["status"] = "active"
+                        save_tracking_data(data)
 
-            if new_fg != old_fg:
-                diff = new_fg - old_fg
-                await context.bot.send_message(chat_id=chat_id, text=f"🚨 <b>SURVEILLANCE ALERT — @{username}</b> 🔄\nFollowing: <code>{old_fg:,}</code> ➔ <b>{new_fg:,}</b> ({diff:+d})", parse_mode="HTML")
-                data[username]["following"] = new_fg
+                        await context.bot.send_message(
+                            chat_id=chat_id,
+                            text=f"🎉 <b>FOLLOW REQUEST ACCEPTED!</b>\n"
+                                 f"<code>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</code>\n"
+                                 f"👤 <b>Target:</b> @{username}\n"
+                                 f"✅ Access granted! Live surveillance has been automatically activated.",
+                            parse_mode="HTML"
+                        )
+                    except Exception:
+                        continue
+                else:
+                    continue
 
-            save_tracking_data(data)
+            # Active Surveillance Operations
+            if data[username].get("status") == "active":
+                old_f, new_f = info.get("followers", 0), user_info.follower_count
+                old_fg, new_fg = info.get("following", 0), user_info.following_count
+
+                if new_f != old_f:
+                    diff = new_f - old_f
+                    icon = "📈" if diff > 0 else "📉"
+                    await context.bot.send_message(
+                        chat_id=chat_id,
+                        text=f"🚨 <b>SURVEILLANCE ALERT — @{username}</b> {icon}\nFollowers: <code>{old_f:,}</code> ➔ <b>{new_f:,}</b> ({diff:+d})",
+                        parse_mode="HTML"
+                    )
+                    data[username]["followers"] = new_f
+
+                if new_fg != old_fg:
+                    diff = new_fg - old_fg
+                    await context.bot.send_message(
+                        chat_id=chat_id,
+                        text=f"🚨 <b>SURVEILLANCE ALERT — @{username}</b> 🔄\nFollowing: <code>{old_fg:,}</code> ➔ <b>{new_fg:,}</b> ({diff:+d})",
+                        parse_mode="HTML"
+                    )
+                    data[username]["following"] = new_fg
+
+                # Story Monitoring
+                seen_stories = info.get("seen_stories", [])
+                current_stories = cl.user_stories(user_id)
+                for story in current_stories:
+                    s_pk = str(story.pk)
+                    if s_pk not in seen_stories:
+                        story_url = story.video_url if story.media_type == 2 else story.thumbnail_url
+                        caption = f"📖 <b>NEW STORY DETECTED!</b>\n👤 Target: @{username}"
+                        if story.media_type == 2:
+                            await context.bot.send_video(chat_id=chat_id, video=str(story_url), caption=caption, parse_mode="HTML")
+                        else:
+                            await context.bot.send_photo(chat_id=chat_id, photo=str(story_url), caption=caption, parse_mode="HTML")
+                        seen_stories.append(s_pk)
+                data[username]["seen_stories"] = seen_stories
+
+                # Post / Reel Monitoring
+                seen_posts = info.get("seen_posts", [])
+                current_posts = cl.user_medias(user_id, amount=3)
+                for post in current_posts:
+                    p_pk = str(post.pk)
+                    if p_pk not in seen_posts:
+                        post_url = f"https://instagram.com/p/{post.code}/"
+                        post_caption = post.caption_text[:200] if post.caption_text else "No Caption"
+                        alert_msg = (
+                            f"🎬 <b>NEW POST / REEL DETECTED!</b>\n"
+                            f"<code>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</code>\n"
+                            f"👤 <b>Target:</b> @{username}\n"
+                            f"📝 <b>Caption:</b> <i>{post_caption}...</i>\n"
+                            f"🔗 <b>Link:</b> <a href='{post_url}'>Click Here to View Post</a>"
+                        )
+                        await context.bot.send_message(chat_id=chat_id, text=alert_msg, parse_mode="HTML")
+                        seen_posts.append(p_pk)
+                data[username]["seen_posts"] = seen_posts
+
+                save_tracking_data(data)
         except Exception as e:
             logger.error(f"Tracking check error for {username}: {e}")
 
@@ -543,7 +704,6 @@ async def post_init_setup(application):
     await application.bot.set_my_commands(commands)
 
     if not scheduler.running:
-        # Safe Interval: 20 Minutes (Prevent Bot Ban)
         scheduler.add_job(tracking_background_task, 'interval', minutes=20, kwargs={'context': application})
         scheduler.start()
 
@@ -568,7 +728,7 @@ def main():
     app.add_handler(CommandHandler("resume", resume_cmd))
     app.add_handler(CommandHandler("tracking", tracking_list_cmd))
 
-    app.add_handler(CallbackQueryHandler(button_callback_handler))
+        app.add_handler(CallbackQueryHandler(button_callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
 
     logger.info("🤖 Insta Ultra Bot is Live!")
