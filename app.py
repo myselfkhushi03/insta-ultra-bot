@@ -42,6 +42,9 @@ logger = logging.getLogger(__name__)
 
 BOT_START_TIME = datetime.now()
 
+# ================= 👑 ADMIN CONFIGURATION =================
+ADMIN_ID = 8536757095  # Authorized Admin Telegram User ID
+
 # ================= 🌐 WEB SERVER FOR RENDER =================
 web_app = Flask(__name__)
 
@@ -75,7 +78,6 @@ def save_tracking_data(data):
     with open(TRACKING_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
-# Helper function to sanitize file names
 def sanitize_filename(filename):
     return re.sub(r'[\\/*?:"<>|]', "", filename)
 
@@ -138,6 +140,7 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "├ 🎯 Send <code>/track username</code> for Live Surveillance\n"
         "├ 👥 Send <code>/followers username</code> for TXT Export\n"
         "├ ➡️ Send <code>/following username</code> for TXT Export\n"
+        "├ 👑 Send <code>/accounts</code> for Instagram Pool Status (Admin)\n"
         "└ ⚡ Send <code>/status</code> to check Bot Uptime\n\n"
         "<code>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</code>\n"
         "👇 <b>Select an option from the menu below:</b>"
@@ -223,11 +226,123 @@ async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_
             await query.message.edit_text(
                 f"✅ <b>Follow Request Sent!</b>\n\n"
                 f"👤 <b>Target:</b> @{username}\n"
-                f"⏳ Bot will monitor for acceptance and automatically start tracking once accepted.",
+                f"⏳ Bot is periodically checking for request acceptance. Surveillance will automatically start as soon as it's approved!",
                 parse_mode="HTML"
             )
         except Exception as e:
             await query.message.reply_text(f"❌ <b>Error Sending Request:</b> {e}", parse_mode="HTML")
+# ================= 👑 ADMIN COMMANDS FOR INSTAGRAM CONTROL =================
+
+async def accounts_status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        await update.message.reply_text("❌ <b>Unauthorized Access:</b> Admin only command.", parse_mode="HTML")
+        return
+
+    msg = await update.message.reply_text("🔍 <i>Checking Instagram accounts status...</i>", parse_mode="HTML")
+    
+    if not os.path.exists(ACCOUNTS_FILE):
+        await msg.edit_text("⚠️ No <code>accounts.json</code> file found.", parse_mode="HTML")
+        return
+
+    try:
+        with open(ACCOUNTS_FILE, "r") as f:
+            accounts = json.load(f)
+        
+        if not accounts:
+            await msg.edit_text("📭 Accounts list is empty.", parse_mode="HTML")
+            return
+
+        res_text = "👑 <b>INSTAGRAM ACCOUNTS POOL STATUS</b>\n<code>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</code>\n\n"
+        active_cnt = 0
+        dead_cnt = 0
+
+        for idx, acc in enumerate(accounts, 1):
+            session_id = acc.get("sessionid", "")
+            try:
+                cl = Client()
+                cl.login_by_sessionid(session_id)
+                account_info = cl.account_info()
+                username = account_info.username
+                res_text += f"{idx}. <b>@{username}</b> — 🟢 Active\n"
+                active_cnt += 1
+            except Exception:
+                res_text += f"{idx}. <i>[Session #{idx}]</i> — 🔴 Dead / Shutdown\n"
+                dead_cnt += 1
+
+        res_text += (
+            f"\n<code>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</code>\n"
+            f"📊 <b>Total:</b> {len(accounts)} | 🟢 <b>Active:</b> {active_cnt} | 🔴 <b>Shutdown:</b> {dead_cnt}"
+        )
+        await msg.edit_text(res_text, parse_mode="HTML")
+    except Exception as e:
+        await msg.edit_text(f"❌ <b>Failed to check accounts:</b> {e}", parse_mode="HTML")
+
+async def set_insta_name_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        return
+    if not context.args:
+        await update.message.reply_text("⚠️ <b>Usage:</b> <code>/setinstaname New Name</code>", parse_mode="HTML")
+        return
+
+    new_name = " ".join(context.args)
+    cl = get_insta_client()
+    if not cl:
+        await update.message.reply_text("❌ Session error.", parse_mode="HTML")
+        return
+
+    try:
+        cl.account_edit(full_name=new_name)
+        await update.message.reply_text(f"✅ Instagram Name updated to: <b>{new_name}</b>", parse_mode="HTML")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Failed: {e}", parse_mode="HTML")
+
+async def set_insta_bio_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        return
+    if not context.args:
+        await update.message.reply_text("⚠️ <b>Usage:</b> <code>/setinstabio New Biography</code>", parse_mode="HTML")
+        return
+
+    new_bio = " ".join(context.args)
+    cl = get_insta_client()
+    if not cl:
+        await update.message.reply_text("❌ Session error.", parse_mode="HTML")
+        return
+
+    try:
+        cl.set_biography(new_bio)
+        await update.message.reply_text(f"✅ Instagram Bio updated successfully!", parse_mode="HTML")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Failed: {e}", parse_mode="HTML")
+
+async def set_insta_dp_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        return
+    if not update.message.photo:
+        await update.message.reply_text("⚠️ Send a photo with <code>/setinstadp</code> as caption.", parse_mode="HTML")
+        return
+
+    msg = await update.message.reply_text("⏳ <i>Updating Profile Picture...</i>", parse_mode="HTML")
+    photo_file = await update.message.photo[-1].get_file()
+    file_path = os.path.join(DOWNLOAD_FOLDER, f"dp_{update.message.message_id}.jpg")
+    await photo_file.download_to_drive(file_path)
+
+    cl = get_insta_client()
+    if not cl:
+        await msg.edit_text("❌ Session error.", parse_mode="HTML")
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        return
+
+    try:
+        cl.account_change_profile_picture(file_path)
+        await msg.edit_text("✅ Instagram Profile Picture changed successfully!", parse_mode="HTML")
+    except Exception as e:
+        await msg.edit_text(f"❌ Failed: {e}", parse_mode="HTML")
+
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
 # ================= 📥 DOWNLOADER & PROFILE LOOKUP =================
 
 async def audio_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -286,7 +401,7 @@ async def audio_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             os.remove(out_file)
 
 async def handle_text_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.strip()
+    text = update.message.text.strip() if update.message.text else ""
 
     if "instagram.com" in text:
         msg = await update.message.reply_text("⏳ <i>Processing Instagram media...</i>", parse_mode="HTML")
@@ -592,9 +707,20 @@ async def tracking_background_task(context: ContextTypes.DEFAULT_TYPE):
             human_delay(5, 12)  # Anti-Ban Delay
             user_info = cl.user_info_by_username(username)
 
-            # Check if pending request is now accepted
+            # --- ACCEPTED REQUEST DETECTION FIX ---
             if status == "pending_request":
-                if not user_info.is_private or user_info.has_anonymous_profile_picture is False:
+                # Check if profile is no longer private OR media/stories can be fetched
+                can_access = False
+                if not user_info.is_private:
+                    can_access = True
+                else:
+                    try:
+                        test_stories = cl.user_stories(user_id)
+                        can_access = True
+                    except Exception:
+                        can_access = False
+
+                if can_access:
                     try:
                         active_stories = cl.user_stories(user_id)
                         initial_story_pks = [str(s.pk) for s in active_stories]
@@ -617,6 +743,7 @@ async def tracking_background_task(context: ContextTypes.DEFAULT_TYPE):
                                  f"✅ Access granted! Live surveillance has been automatically activated.",
                             parse_mode="HTML"
                         )
+                        continue
                     except Exception:
                         continue
                 else:
@@ -698,7 +825,8 @@ async def post_init_setup(application):
         BotCommand("untrack", "Terminate Surveillance"),
         BotCommand("pause", "Pause Surveillance Alerts"),
         BotCommand("resume", "Resume Surveillance Alerts"),
-        BotCommand("tracking", "List Tracking Targets")
+        BotCommand("tracking", "List Tracking Targets"),
+        BotCommand("accounts", "Instagram Pool Status (Admin)")
     ]
     await application.bot.set_my_commands(commands)
 
@@ -726,6 +854,12 @@ def main():
     app.add_handler(CommandHandler("pause", pause_cmd))
     app.add_handler(CommandHandler("resume", resume_cmd))
     app.add_handler(CommandHandler("tracking", tracking_list_cmd))
+
+    # Admin Exclusive Handlers
+    app.add_handler(CommandHandler("accounts", accounts_status_cmd))
+    app.add_handler(CommandHandler("setinstaname", set_insta_name_cmd))
+    app.add_handler(CommandHandler("setinstabio", set_insta_bio_cmd))
+    app.add_handler(MessageHandler(filters.PHOTO & filters.CaptionRegex(r"^/setinstadp"), set_insta_dp_cmd))
 
     app.add_handler(CallbackQueryHandler(button_callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_messages))
